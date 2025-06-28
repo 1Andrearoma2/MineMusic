@@ -15,9 +15,13 @@ import net.minecraft.util.Util;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.function.Supplier;
 
 public class SettingsScreen extends Screen {
@@ -49,15 +53,16 @@ public class SettingsScreen extends Screen {
             try {
                 if (SpotifyTokenManager.getValidate()){
                     adder.add(this.createStandardButton(Text.literal("Account: " + UserInfos.username(userInfosFile)), () -> loginButton()));
-                    adder.add(this.createStandardButton(Text.literal("Account: " + UserInfos.username(userInfosFile)), () -> loginButton()));
                 } else {
                     SpotifyTokenManager.getAccessToken();
                     adder.add(this.createStandardButton(Text.literal("Account: " + UserInfos.username(userInfosFile)), () -> loginButton()));
                 }
 
                 // Style Button
-                ArrayList<String> options = new ArrayList<>(List.of(new String[]{"negro", "frocio", "ricchione"}));
-                adder.add(this.createCyclingButton(options, null));
+                Properties optionsProps = loadOptions(optionsFile);
+                String selectedStyle = optionsProps.getProperty("style", "Bossbar");
+                ArrayList<String> options = new ArrayList<>(List.of(new String[]{"bossbar", "overlay", "chat"}));
+                adder.add(this.createCyclingButton(options, optionsFile, selectedStyle));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -79,10 +84,10 @@ public class SettingsScreen extends Screen {
         }).build();
     }
 
-    private CyclingButtonWidget<Object> createCyclingButton(ArrayList<String> options, Supplier<Screen> onClick){
+    private CyclingButtonWidget<Object> createCyclingButton(ArrayList<String> options, File optionsFile, String selectedStyle){
         return CyclingButtonWidget.builder(value -> Text.literal(value.toString()))
                 .values(options.toArray())
-                .initially(options.getFirst())
+                .initially(selectedStyle)
                 .build(
                         this.width / 2 - 100 + 205,
                         this.height / 4 + 48,
@@ -90,6 +95,8 @@ public class SettingsScreen extends Screen {
                         20,
                         Text.translatable("minemusic.styleButtonLabel"),
                         (button, value) -> {
+                            String newStyle = value.toString();
+                            saveOption(optionsFile, "style", newStyle);
                             System.out.println("Selezionato: " + value);
                             //MinecraftClient.getInstance().setScreen(onClick.get());
                         }
@@ -111,10 +118,42 @@ public class SettingsScreen extends Screen {
                     if (confirmed){
                         Util.getOperatingSystem().open(loginUrl);
                     }
-                    MinecraftClient.getInstance().setScreen(this);
+                    MinecraftClient.getInstance().setScreen(new SettingsScreen(this.parent));
                 },
                 loginUrl,
                 true
         );
     }
+
+    private Properties loadOptions(File optionsFile) {
+        Properties properties = new Properties();
+        try (FileReader reader = new FileReader(optionsFile)) {
+            properties.load(reader);
+        } catch (IOException e) {
+            e.printStackTrace(); // oppure logga meglio
+        }
+        return properties;
+    }
+
+    private void saveOption(File optionsFile, String key, String value) {
+        Properties props = new Properties();
+        try {
+            // carica quelle esistenti
+            if (optionsFile.exists()) {
+                try (FileReader reader = new FileReader(optionsFile)) {
+                    props.load(reader);
+                }
+            }
+            // aggiorna
+            props.setProperty(key, value);
+            // salva
+            try (FileWriter writer = new FileWriter(optionsFile)) {
+                props.store(writer, "MineMusic options");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
 }
