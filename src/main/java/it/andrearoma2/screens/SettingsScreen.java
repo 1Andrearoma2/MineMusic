@@ -98,7 +98,6 @@ public class SettingsScreen extends Screen {
                             String newStyle = value.toString();
                             saveOption(optionsFile, "style", newStyle);
                             System.out.println("Selezionato: " + value);
-                            //MinecraftClient.getInstance().setScreen(onClick.get());
                         }
                 );
     }
@@ -130,7 +129,7 @@ public class SettingsScreen extends Screen {
         try (FileReader reader = new FileReader(optionsFile)) {
             properties.load(reader);
         } catch (IOException e) {
-            e.printStackTrace(); // oppure logga meglio
+            e.printStackTrace();
         }
         return properties;
     }
@@ -138,15 +137,12 @@ public class SettingsScreen extends Screen {
     private void saveOption(File optionsFile, String key, String value) {
         Properties props = new Properties();
         try {
-            // carica quelle esistenti
             if (optionsFile.exists()) {
                 try (FileReader reader = new FileReader(optionsFile)) {
                     props.load(reader);
                 }
             }
-            // aggiorna
             props.setProperty(key, value);
-            // salva
             try (FileWriter writer = new FileWriter(optionsFile)) {
                 props.store(writer, "MineMusic options");
             }
