@@ -20,6 +20,9 @@
 		],
 		"fabric-datagen": [
 			"it.andrearoma2.MineMusicDataGenerator"
+		],
+		"client": [
+			"it.andrearoma2.MineMusicClient"
 		]
 	},
 	"mixins": [

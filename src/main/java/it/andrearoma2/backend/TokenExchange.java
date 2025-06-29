@@ -4,6 +4,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minidev.json.JSONObject;
 import se.michaelthelin.spotify.SpotifyApi;
 import se.michaelthelin.spotify.model_objects.credentials.AuthorizationCodeCredentials;
+import se.michaelthelin.spotify.model_objects.miscellaneous.CurrentlyPlaying;
 import se.michaelthelin.spotify.model_objects.specification.User;
 import se.michaelthelin.spotify.requests.authorization.authorization_code.AuthorizationCodeRequest;
 
@@ -15,9 +16,10 @@ import java.nio.file.Path;
 import java.util.Properties;
 
 public class TokenExchange {
+    public static SpotifyApi spotifyApi;
     public static void exchangeCode(String code){
         try {
-            SpotifyApi spotifyApi = new SpotifyApi.Builder()
+            spotifyApi = new SpotifyApi.Builder()
                     .setClientId(SecureConfig.clientId)
                     .setClientSecret(SecureConfig.clientSecret)
                     .setRedirectUri(URI.create(SecureConfig.redirectUri))
@@ -61,7 +63,7 @@ public class TokenExchange {
                 }
             }
 
-            System.out.println("Loggato!");
+
         } catch (Exception e) {
             e.printStackTrace();
         }
