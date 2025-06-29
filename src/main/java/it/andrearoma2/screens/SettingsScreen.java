@@ -7,12 +7,13 @@ import it.andrearoma2.backend.UserInfos;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ConfirmLinkScreen;
+import net.minecraft.client.gui.screen.ConfirmScreen;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.*;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 import net.minecraft.util.Util;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.io.File;
 import java.io.FileReader;
@@ -25,6 +26,10 @@ import java.util.Properties;
 import java.util.function.Supplier;
 
 public class SettingsScreen extends Screen {
+    private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir();
+    private static File tokenFile;
+    private static File userInfosFile;
+    private static File optionsFile;
     private static final Text TITLE_TEXT = Text.translatable("minemusic.settingsScreenTitle");
     protected final Screen parent;
     private final ThreePartsLayoutWidget layout = new ThreePartsLayoutWidget(this, 61, 33);
@@ -39,30 +44,38 @@ public class SettingsScreen extends Screen {
         directionalLayoutWidget.add(new TextWidget(TITLE_TEXT, this.textRenderer), Positioner::alignHorizontalCenter);
         GridWidget gridWidget = new GridWidget();
         gridWidget.getMainPositioner().marginX(4).marginBottom(4).alignHorizontalCenter();
-        GridWidget.Adder adder = gridWidget.createAdder(1);
+        GridWidget.Adder adder = gridWidget.createAdder(2);
 
         // Spotify Login System
-        Path configPath = FabricLoader.getInstance().getConfigDir();
-        File tokenFile = configPath.resolve("minemusic/tokens.properties").toFile();
-        File userInfosFile = configPath.resolve("minemusic/userInfo.json").toFile();
-        File optionsFile = configPath.resolve("minemusic/options.properties").toFile();
+        tokenFile = CONFIG_PATH.resolve("minemusic/tokens.properties").toFile();
+        userInfosFile = CONFIG_PATH.resolve("minemusic/userInfo.json").toFile();
+        optionsFile = CONFIG_PATH.resolve("minemusic/options.properties").toFile();
+        Properties optionsProps = loadOptions(optionsFile);
 
         if (!tokenFile.exists() || !userInfosFile.exists() || !optionsFile.exists()){
             adder.add(this.createStandardButton(Text.translatable("minemusic.loginButtonLabel"), () -> loginButton()));
         } else {
             try {
                 if (SpotifyTokenManager.getValidate()){
-                    adder.add(this.createStandardButton(Text.literal("Account: " + UserInfos.username(userInfosFile)), () -> loginButton()));
+                    adder.add(this.createStandardButton(Text.literal("Account: " + UserInfos.username(userInfosFile)), () -> logoutButton()));
                 } else {
                     SpotifyTokenManager.getAccessToken();
-                    adder.add(this.createStandardButton(Text.literal("Account: " + UserInfos.username(userInfosFile)), () -> loginButton()));
+                    adder.add(this.createStandardButton(Text.literal("Account: " + UserInfos.username(userInfosFile)), () -> logoutButton()));
                 }
 
                 // Style Button
-                Properties optionsProps = loadOptions(optionsFile);
                 String selectedStyle = optionsProps.getProperty("style", "Bossbar");
-                ArrayList<String> options = new ArrayList<>(List.of(new String[]{"bossbar", "overlay", "chat"}));
-                adder.add(this.createCyclingButton(options, optionsFile, selectedStyle));
+                ArrayList<String> styles = new ArrayList<>(List.of(new String[]{"Bossbar", "Overlay", "In-chat"}));
+                adder.add(this.createCyclingButton(styles, optionsFile, selectedStyle, Text.translatable("minemusic.styleButtonLabel"), "style", Text.translatable("minemusic.styleButtonTooltip")));
+                // Layout Button
+                String selectedLayout = optionsProps.getProperty("layout", "Title");
+                ArrayList<String> layouts = new ArrayList<>(List.of(new String[]{"Title", "Title & Author", "Complete"}));
+                adder.add(this.createCyclingButton(layouts, optionsFile, selectedLayout, Text.translatable("minemusic.layoutButtonLabel"), "layout", Text.translatable("minemusic.layoutButtonTooltip")));
+                // CoverImage Button
+                String coverImage = optionsProps.getProperty("coverImage", "OFF");
+                ArrayList<String> boolImage = new ArrayList<>(List.of(new String[]{"ON", "OFF"}));
+                adder.add(this.createCyclingButton(boolImage, optionsFile, String.valueOf(coverImage), Text.translatable("minemusic.coverImageButtonLabel"),  "coverImage", Text.translatable("minemusic.coverImageButtonTooltip")));
+
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -84,20 +97,20 @@ public class SettingsScreen extends Screen {
         }).build();
     }
 
-    private CyclingButtonWidget<Object> createCyclingButton(ArrayList<String> options, File optionsFile, String selectedStyle){
+    private CyclingButtonWidget<Object> createCyclingButton(ArrayList<String> options, File optionsFile, String selectedValue, Text buttonLabel, String optionKey, Text tooltip){
         return CyclingButtonWidget.builder(value -> Text.literal(value.toString()))
                 .values(options.toArray())
-                .initially(selectedStyle)
+                .initially(selectedValue)
+                .tooltip(value -> Tooltip.of(tooltip))
                 .build(
                         this.width / 2 - 100 + 205,
                         this.height / 4 + 48,
-                        120,
+                        150,
                         20,
-                        Text.translatable("minemusic.styleButtonLabel"),
+                        buttonLabel,
                         (button, value) -> {
                             String newStyle = value.toString();
-                            saveOption(optionsFile, "style", newStyle);
-                            System.out.println("Selezionato: " + value);
+                            saveOption(optionsFile, optionKey, newStyle);
                         }
                 );
     }
@@ -116,11 +129,30 @@ public class SettingsScreen extends Screen {
                 confirmed -> {
                     if (confirmed){
                         Util.getOperatingSystem().open(loginUrl);
+                        MinecraftClient.getInstance().setScreen(null);
+                    } else {
+                        MinecraftClient.getInstance().setScreen(new SettingsScreen(this.parent));
                     }
-                    MinecraftClient.getInstance().setScreen(new SettingsScreen(this.parent));
                 },
                 loginUrl,
                 true
+        );
+    }
+
+    private ConfirmScreen logoutButton(){
+        return new ConfirmScreen(
+                confirmed -> {
+                    if (confirmed) {
+                        if (tokenFile.delete() && userInfosFile.delete()) {
+                            System.out.println("Logged Out Successfully!");
+                        } else {
+                            System.out.println("Failed to delete files!");
+                        }
+                    }
+                    MinecraftClient.getInstance().setScreen(new SettingsScreen(this.parent));
+                },
+                Text.translatable("minemusic.logoutText"),
+                Text.translatable("minemusic.logoutConfirmText")
         );
     }
 
@@ -144,7 +176,7 @@ public class SettingsScreen extends Screen {
             }
             props.setProperty(key, value);
             try (FileWriter writer = new FileWriter(optionsFile)) {
-                props.store(writer, "MineMusic options");
+                props.store(writer, null);
             }
         } catch (IOException e) {
             e.printStackTrace();

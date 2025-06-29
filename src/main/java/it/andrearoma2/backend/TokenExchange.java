@@ -52,9 +52,9 @@ public class TokenExchange {
             // Create options.properties
             if (!configPath.resolve("minemusic/options.properties").toFile().exists()){
                 Properties options = new Properties();
-                options.setProperty("style", "bossbar"); // [bossbar, overlay, chat]
-                options.setProperty("layout", "only title"); // [only title, title and author, title-author (album)]
-                options.setProperty("coverImage", "true"); // ONLY OVERLAY
+                options.setProperty("style", "Bossbar"); // ["Bossbar", "Overlay", "In-chat"]
+                options.setProperty("layout", "Title"); // ["Title", "Title & Author", "Complete"]
+                options.setProperty("coverImage", "OFF"); // ONLY OVERLAY ["ON", "OFF"]
                 File optionsFile = configPath.resolve("minemusic/options.properties").toFile();
                 try (FileOutputStream out = new FileOutputStream(optionsFile)){
                     options.store(out, null);
