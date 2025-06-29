@@ -13,6 +13,7 @@ import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.*;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Util;
 
 import java.io.File;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Supplier;
 
@@ -64,17 +66,17 @@ public class SettingsScreen extends Screen {
                 }
 
                 // Style Button
-                String selectedStyle = optionsProps.getProperty("style", "Bossbar");
-                ArrayList<String> styles = new ArrayList<>(List.of(new String[]{"Bossbar", "Overlay", "In-chat"}));
-                adder.add(this.createCyclingButton(styles, optionsFile, selectedStyle, Text.translatable("minemusic.styleButtonLabel"), "style", Text.translatable("minemusic.styleButtonTooltip")));
+                String selectedStyle = optionsProps.getProperty("style", "Boss Bar");
+                ArrayList<String> styles = new ArrayList<>(List.of(new String[]{"Boss Bar", "Overlay (HUD)", "Chat Message"}));
+                adder.add(this.createCyclingButton(styles, optionsFile, selectedStyle, Text.translatable("minemusic.styleButtonLabel"), "style"));
                 // Layout Button
-                String selectedLayout = optionsProps.getProperty("layout", "Title");
-                ArrayList<String> layouts = new ArrayList<>(List.of(new String[]{"Title", "Title & Author", "Complete"}));
-                adder.add(this.createCyclingButton(layouts, optionsFile, selectedLayout, Text.translatable("minemusic.layoutButtonLabel"), "layout", Text.translatable("minemusic.layoutButtonTooltip")));
+                String selectedLayout = optionsProps.getProperty("layout", "Title Only");
+                ArrayList<String> layouts = new ArrayList<>(List.of(new String[]{"Title Only", "Title and Artist", "Full Info"}));
+                adder.add(this.createCyclingButton(layouts, optionsFile, selectedLayout, Text.translatable("minemusic.layoutButtonLabel"), "layout"));
                 // CoverImage Button
                 String coverImage = optionsProps.getProperty("coverImage", "OFF");
                 ArrayList<String> boolImage = new ArrayList<>(List.of(new String[]{"ON", "OFF"}));
-                adder.add(this.createCyclingButton(boolImage, optionsFile, String.valueOf(coverImage), Text.translatable("minemusic.coverImageButtonLabel"),  "coverImage", Text.translatable("minemusic.coverImageButtonTooltip")));
+                adder.add(this.createCyclingButton(boolImage, optionsFile, String.valueOf(coverImage), Text.translatable("minemusic.coverImageButtonLabel"),  "coverImage"));
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -97,11 +99,37 @@ public class SettingsScreen extends Screen {
         }).build();
     }
 
-    private CyclingButtonWidget<Object> createCyclingButton(ArrayList<String> options, File optionsFile, String selectedValue, Text buttonLabel, String optionKey, Text tooltip){
+    private CyclingButtonWidget<Object> createCyclingButton(ArrayList<String> options, File optionsFile, String selectedValue, Text buttonLabel, String optionKey){
         return CyclingButtonWidget.builder(value -> Text.literal(value.toString()))
                 .values(options.toArray())
                 .initially(selectedValue)
-                .tooltip(value -> Tooltip.of(tooltip))
+                .tooltip(value -> {
+                    String val = value.toString();
+                    Text dynamicTooltip = null;
+                    switch (optionKey) {
+                        case "style" -> {
+                            dynamicTooltip = switch (val) {
+                                case "Boss Bar" -> Text.translatable("minemusic.bossbarStyleTooltipText");
+                                case "Overlay (HUD)" -> Text.translatable("minemusic.overlayStyleTooltipText");
+                                case "Chat Message" -> Text.translatable("minemusic.chatMessageStyleTooltipText");
+                                default -> Text.literal("");
+                            };
+                        }
+                        case "layout" -> {
+                            dynamicTooltip = switch (val) {
+                                case "Title Only" -> Text.translatable("minemusic.titleLayoutTooltipText");
+                                case "Title and Artist" -> Text.translatable("minemusic.titleAndArtistLayoutTooltipText");
+                                case "Full Info" -> Text.translatable("minemusic.completeLayoutTooltipText");
+                                default -> Text.literal("");
+                            };
+                        }
+                        case "coverImage" -> {
+                            dynamicTooltip = Text.translatable("minemusic.coverImageButtonTooltip").append(Text.translatable("minemusic.coverImageButtonTooltipWarning").styled(style -> style.withColor(Formatting.RED)));
+                        }
+                        default -> Text.literal("");
+                    }
+                    return Tooltip.of(dynamicTooltip);
+                })
                 .build(
                         this.width / 2 - 100 + 205,
                         this.height / 4 + 48,
